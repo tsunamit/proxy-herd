@@ -34,7 +34,6 @@ config.read('config.ini')
 
 
 def main():
-    # async with aiohttp.ClientSession() as session:
     if len(sys.argv) != 2:
         print("Invalid number of arguments!")
         print_usage()
@@ -50,7 +49,7 @@ def main():
     print("\n\nStarting server: {}...\n\n".format(server_name))
 
     loop = asyncio.get_event_loop()
-    coro = asyncio.start_server(handle_event, '127.0.0.1', SERVER_PORT_MAP[server_name], loop=loop)
+    coro = asyncio.start_server(handle_event, '127.0.0.1', SERVER_PORT_MAP[server_name])
     server = loop.run_until_complete(coro)
 
     try:
@@ -72,6 +71,10 @@ async def handle_event(reader, writer):
     addr = writer.get_extra_info('peername')
     print(f"Receieved {message} from {addr}")
     
+    async with aiohttp.ClientSession() as session:
+        await handle_message(message, addr, session)      
+
+
 
 # Processes a message m received presumably from an async event.
 # TODO field validation

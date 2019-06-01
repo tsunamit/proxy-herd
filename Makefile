@@ -12,3 +12,18 @@ install:
 	
 run:
 	python server.py Hands 
+
+goloman:
+	python3 server.py Goloman 
+
+hands:
+	python3 server.py Hands
+
+holiday:
+	python3 server.py Holiday 
+
+welsh:
+	python3 server.py Welsh 
+
+wilkes:
+	python3 server.py Wilkes 
