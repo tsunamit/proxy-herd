@@ -24,6 +24,7 @@ SERVER_PORT_MAP = {
     'Welsh': 12780,
     'Wilkes': 12781
 }
+HOST = '127.0.0.1'
 server_name = ""
 clients= {}
 log = []
@@ -72,36 +73,37 @@ async def handle_event(reader, writer):
     print(f"Receieved {message} from {addr}")
     
     async with aiohttp.ClientSession() as session:
-        await handle_message(message, addr, session)      
+        await handle_message(message, addr, writer, session)      
+        print(f"---\nDone processing. New clients: {clients}\n---")
 
 
 
 # Processes a message m received presumably from an async event.
 # TODO field validation
-async def handle_message(m, source, session):
+async def handle_message(m, source, writer, session):
     connection = "TODO_CONNECTION"
     log_message(IN, m, connection)
     t_received = time.time()
 
     if m.startswith('IAMAT '):
-        handle_client_location(m, t_received, source)
+        await handle_client_location(m, t_received, source, writer)
     elif m.startswith('WHATSAT '):
-        await handle_client_query(m, source, session)
+        await handle_client_query(m, source, session, writer)
     elif m.startswith('AT '):
-        handle_propagation(m)
+        await handle_propagation(m)
     else:
         print("\nUnknown message received: ", m)
-        send_message(f"? {m}", [source])
+        await send_message(f"? {m}", [source], writer)
 
 
 # Process a client IAMAT location message m
-def handle_client_location(m, t, source):
+async def handle_client_location(m, t, source, writer):
     m = m.strip()
     print("\nReceived location message: ", m)
     m_parse = m.split()
 
     if len(m_parse) != 4:
-        send_message(f"? {m}", [source])
+        await send_message(f"? {m}", [source], writer)
         return
     
     client_id = m_parse[1]
@@ -113,14 +115,14 @@ def handle_client_location(m, t, source):
     t_delta_s = t_prefix + str(t_delta)
 
     if not is_valid_location(client_location):
-        send_message(f"? {m}", [source])
+        await send_message(f"? {m}", [source], writer)
         return
 
     store_client_data(client_id, client_location, client_timestamp, t_delta_s)
 
     # Respond to client
     response = "AT {} {} {}".format(server_name, t_delta_s, m)
-    send_message(response, [source])
+    await send_message(response, [source], writer)
 
     # Propagate location information
     propagate_list = \
@@ -128,17 +130,17 @@ def handle_client_location(m, t, source):
     propagation = "AT {} {} {} {} {}" \
                   .format(server_name, t_delta_s, client_id, 
                           client_location, client_timestamp)
-    send_message(propagation, propagate_list)
+    await send_message(propagation, propagate_list)
       
 
 # Process client query m
-async def handle_client_query(m, source, session):
+async def handle_client_query(m, source, session, writer):
     m = m.strip()
     print("\nReceived query: ", m)
     m_parse = m.split()
     
     if len(m_parse) != 4:
-        send_message(f"? {m}", [source])
+        await send_message(f"? {m}", [source], writer)
         return
     
     target_client = m_parse[1]
@@ -148,21 +150,21 @@ async def handle_client_query(m, source, session):
     client_data = get_client_data(target_client)
     if not client_data:
         print(f"No client data for {target_client}")
-        send_message(f"? {m}", [source])
+        await send_message(f"? {m}", [source], writer)
         return
     
     try:
         lat, long = re.findall("[+-]{1}[0-9]+[.]*[0-9]+", 
                     client_data['location'])
     except:
-        send_message(f"? {m}", [source])
+        await send_message(f"? {m}", [source], writer)
         return
 
     gcpapi_res = await nearby_search(f"{lat},{long}", int(radius), 
                               int(max_results), session)
     
     if not gcpapi_res:
-        send_message(f"? {m}", [source])
+        await send_message(f"? {m}", [source], writer)
         return
 
     # Trim results to maximum
@@ -174,7 +176,7 @@ async def handle_client_query(m, source, session):
                         .format(client_data['server'], client_data['timedelta'],
                                 target_client, client_data['location'], 
                                 client_data['timestamp'], formatted_gcpapi_response)
-    send_message(message_to_client, [source])
+    await send_message(message_to_client, [source], writer)
 
 
 # Makes REST GET call to Google Places API nearby search
@@ -191,7 +193,7 @@ async def nearby_search(location, radius, max_count, session):
     
 # Process propagation flood message m. Propagation messages should have form:
 # AT [server] [timedelta] [client id] [location] [timestamp]
-def handle_propagation(m):
+async def handle_propagation(m):
     m = m.strip()
     print("Flood message received: ", m)
     m_parse = m.split()
@@ -215,7 +217,7 @@ def handle_propagation(m):
     store_client_data(client_id, client_location, timestamp, timedelta, server)
     propagate_list = \
         [SERVER_PORT_MAP[s] for s in PROPAGATION_MAP[server_name]]
-    send_message(m, propagate_list)
+    await send_message(m, propagate_list)
 
 
 # Store reported client location
@@ -244,12 +246,20 @@ def is_valid_location(l):
 
 
 # Send TCP message to another server or client. Sends to all nodes indicated by
-# id in list d
-def send_message(m, d):
+# id in list d. Write using writer w
+async def send_message(m, d, w=None):
+    open_connection_flag = False if w else True 
     for target in d:
+        if open_connection_flag:
+            print(f"Opening connection to HOST: {HOST}, a: {target}")
+            r, w = await asyncio.open_connection(HOST, target)
         log_message(OUT, m, target)
         print("\n{} sending message to {}: \n{}"
               .format(server_name, target, m))
+        w.write(m.encode())
+        await w.drain()
+        print("Closing client socket")
+        w.close()
 
 
 # Save a message into the server log
