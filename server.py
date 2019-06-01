@@ -18,11 +18,11 @@ PROPAGATION_MAP = {
     'Wilkes': ['Goloman', 'Hands', 'Holiday']
 }
 SERVER_PORT_MAP = {
-    'Goloman': 'goloman.1.2.3.4',
-    'Hands': 'hands.1.2.3.4',
-    'Holiday': 'holiday.1.2.3.4',
-    'Welsh': 'welsh.1.2.3.4',
-    'Wilkes': 'wilkes.1.2.3.4'
+    'Goloman': 12777,
+    'Hands': 12778,
+    'Holiday': 12779,
+    'Welsh': 12780,
+    'Wilkes': 12781
 }
 server_name = ""
 clients= {}
