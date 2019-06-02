@@ -1,0 +1,46 @@
+!!!  Failed to connect to Hands
+!!!  Failed to connect to Holiday
+!!!  Failed to connect to Wilkes
+<<< ('127.0.0.1', 45098) ONLINE Hands
+***  Connection established to Hands
+<<< ('127.0.0.1', 45102) ONLINE Wilkes
+***  Connection established to Wilkes
+<<< ('127.0.0.1', 45110) ONLINE Holiday
+***  Connection established to Holiday
+<<< ('127.0.0.1', 45120) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+>>> 12778 AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+>>> 12779 AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+<<< ('127.0.0.1', 45126) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+>>> 12781 AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+<<< ('127.0.0.1', 45136) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+<<< ('127.0.0.1', 45144) WHATSAT kiwi 1 1
+
+>>> ('127.0.0.1', 45144) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+{
+    "html_attributions": [],
+    "results": [],
+    "status": "ZERO_RESULTS"
+}
+
+<<< ('127.0.0.1', 45166) AT Hands +39416860.285205364 kiwi +1.0-1.0 1520023934.918964
+<<< ('127.0.0.1', 45174) AT Hands +39416897.48316574 kiwi +0.0-0.0 1520023934.918964
+<<< ('127.0.0.1', 45178) WHATSAT kiwi 1 1
+
+>>> ('127.0.0.1', 45178) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+{
+    "html_attributions": [],
+    "results": [],
+    "status": "ZERO_RESULTS"
+}
+
+<<< ('127.0.0.1', 45200) AT Hands +39416898.06838894 kiwi +1.0-1.0 1520023934.918964
+<<< ('127.0.0.1', 45760) AT Hands +39416949.944936275 kiwi +0.0-0.0 1520023934.918964
+<<< ('127.0.0.1', 45764) WHATSAT kiwi 1 1
+
+>>> ('127.0.0.1', 45764) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+{
+    "html_attributions": [],
+    "results": [],
+    "status": "ZERO_RESULTS"
+}
+

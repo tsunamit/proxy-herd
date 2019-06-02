@@ -9,6 +9,8 @@ import json
 
 IN = "input"
 OUT = "output"
+CONNECT = "connect"
+DISCONNECT = "disconnect"
 SERVERS = ['Goloman', 'Hands', 'Holiday', 'Welsh', 'Wilkes']
 PROPAGATION_MAP = {
     'Goloman': ['Hands', 'Holiday', 'Wilkes'],
@@ -24,10 +26,24 @@ SERVER_PORT_MAP = {
     'Welsh': 12780,
     'Wilkes': 12781
 }
+SERVER_FN_MAP = {
+    'Goloman': "goloman_log.txt",
+    'Hands': "hands_log.txt",
+    'Holiday': "holiday_log.txt",
+    'Welsh': "welsh_log.txt",
+    'Wilkes': "wilkes_log.txt",
+}
+SERVER_STATUS = {
+    'Goloman': 0,
+    'Hands': 0,
+    'Holiday': 0,
+    'Welsh': 0,
+    'Wilkes': 0 
+}
 HOST = '127.0.0.1'
 server_name = ""
 clients= {}
-log = []
+log = None
 
 # Config file used for secret stuff like the API Key
 config = configparser.ConfigParser()
@@ -47,11 +63,13 @@ def main():
         print_usage()
         exit(1)
     
-    print("\n\nStarting server: {}...\n\n".format(server_name))
+    # print("\n\nStarting server: {}...\n\n".format(server_name))
+    setup_log()
 
     loop = asyncio.get_event_loop()
     coro = asyncio.start_server(handle_event, '127.0.0.1', SERVER_PORT_MAP[server_name])
-    server = loop.run_until_complete(coro)
+    server = loop.run_until_complete(coro)  
+    broadcast = loop.run_until_complete(broadcast_status())
 
     try:
         loop.run_forever()
@@ -62,26 +80,50 @@ def main():
     loop.run_until_complete(server.wait_closed())
     loop.close()
 
-    print("\n\n{} going offline\n\nDumping log...".format(server_name))
-    dump_log()
+    # print("\n\n{} going offline\n\nDumping log...".format(server_name))
+    # dump_log()
+    log.close()
 
+
+async def broadcast_status(): 
+    for s in PROPAGATION_MAP[server_name]: 
+        if s == server_name:
+            continue
+        try:
+            r, w = await asyncio.open_connection(HOST, SERVER_PORT_MAP[s])
+            if SERVER_STATUS[s] == 0:
+                SERVER_STATUS[s] = 1
+                log_message(CONNECT, f"Connection established to {s}")
+            m = f"ONLINE {server_name}" 
+            w.write(m.encode())
+            await w.drain()
+            # print("Closing client socket")
+            w.close()
+        except:
+            # print(f"Got no response from {s}")
+            if SERVER_STATUS[s] == 1:
+                SERVER_STATUS[s] = 0
+            log_message(DISCONNECT, f"Failed to connect to {s}")
+            pass
+        
+        
 
 async def handle_event(reader, writer):
     data = await reader.read()
     message = data.decode()
     addr = writer.get_extra_info('peername')
-    print(f"Receieved {message} from {addr}")
+    # print(f"Receieved {message} from {addr}")
     
     async with aiohttp.ClientSession() as session:
         await handle_message(message, addr, writer, session)      
-        print(f"---\nDone processing. New clients: {clients}\n---")
+        # print(f"---\nDone processing. New clients: {clients}\n---")
 
 
 
 # Processes a message m received presumably from an async event.
 # TODO field validation
 async def handle_message(m, source, writer, session):
-    connection = "TODO_CONNECTION"
+    connection = source
     log_message(IN, m, connection)
     t_received = time.time()
 
@@ -91,15 +133,21 @@ async def handle_message(m, source, writer, session):
         await handle_client_query(m, source, session, writer)
     elif m.startswith('AT '):
         await handle_propagation(m)
+    elif m.startswith('ONLINE'):
+        handle_server_status(m)
     else:
-        print("\nUnknown message received: ", m)
+        # print("\nUnknown message received: ", m)
         await send_message(f"? {m}", [source], writer)
+
+
+def handle_server_status(m):
+    log_message(CONNECT, f"Connection established to {m.split()[1]}")
 
 
 # Process a client IAMAT location message m
 async def handle_client_location(m, t, source, writer):
     m = m.strip()
-    print("\nReceived location message: ", m)
+    # print("\nReceived location message: ", m)
     m_parse = m.split()
 
     if len(m_parse) != 4:
@@ -119,6 +167,7 @@ async def handle_client_location(m, t, source, writer):
         return
 
     store_client_data(client_id, client_location, client_timestamp, t_delta_s)
+    # print(f"Storing {client_id} location: {client_location}")
 
     # Respond to client
     response = "AT {} {} {}".format(server_name, t_delta_s, m)
@@ -136,7 +185,7 @@ async def handle_client_location(m, t, source, writer):
 # Process client query m
 async def handle_client_query(m, source, session, writer):
     m = m.strip()
-    print("\nReceived query: ", m)
+    # print("\nReceived query: ", m)
     m_parse = m.split()
     
     if len(m_parse) != 4:
@@ -149,7 +198,7 @@ async def handle_client_query(m, source, session, writer):
 
     client_data = get_client_data(target_client)
     if not client_data:
-        print(f"No client data for {target_client}")
+        # print(f"No client data for {target_client}")
         await send_message(f"? {m}", [source], writer)
         return
     
@@ -195,11 +244,11 @@ async def nearby_search(location, radius, max_count, session):
 # AT [server] [timedelta] [client id] [location] [timestamp]
 async def handle_propagation(m):
     m = m.strip()
-    print("Flood message received: ", m)
+    # print("Flood message received: ", m)
     m_parse = m.split()
 
     if len(m_parse) != 6:
-        print("Invalid format for propagation message: too many entries.")
+        # print("Invalid format for propagation message: too many entries.")
         return
 
     server = m_parse[1]
@@ -211,12 +260,15 @@ async def handle_propagation(m):
     # Check to see if we already have the latest client update
     last_client_report = get_client_data(client_id)
     if last_client_report and last_client_report['timestamp'] == timestamp:
+        # print(f"{client_id} location already updated... ignoring")
         return
     
     # Otherwise store new data and propagate
     store_client_data(client_id, client_location, timestamp, timedelta, server)
+    # print(f"Storing {client_id} location: {client_location}")
     propagate_list = \
         [SERVER_PORT_MAP[s] for s in PROPAGATION_MAP[server_name]]
+    # print(f"Propagation list: {propagate_list}")
     await send_message(m, propagate_list)
 
 
@@ -250,26 +302,45 @@ def is_valid_location(l):
 async def send_message(m, d, w=None):
     open_connection_flag = False if w else True 
     for target in d:
-        if open_connection_flag:
-            print(f"Opening connection to HOST: {HOST}, a: {target}")
-            r, w = await asyncio.open_connection(HOST, target)
-        log_message(OUT, m, target)
-        print("\n{} sending message to {}: \n{}"
-              .format(server_name, target, m))
-        w.write(m.encode())
-        await w.drain()
-        print("Closing client socket")
-        w.close()
+        try:
+          if open_connection_flag:
+              # print(f"Opening connection to HOST: {HOST}, a: {target}")
+              r, w = await asyncio.open_connection(HOST, target)
+          log_message(OUT, m, target)
+          # print("\n{} sending message to {}: \n{}"
+                # .format(server_name, target, m))
+          w.write(m.encode())
+          await w.drain()
+          # print("Closing client socket")
+          w.close()
+        except:
+          log_message(DISCONNECT, f"Failed to connect to {target}")
 
+
+# Setup log
+def setup_log():
+  global log
+  log = open(SERVER_FN_MAP[server_name], "w+")
+    
 
 # Save a message into the server log
-def log_message(dir, m, connection):
-    prefix = "INVALID_LOG_DIR" if dir != IN and dir != OUT \
-             else "<<<" if dir == IN else ">>>"
-    to_log = "{} {} {}".format(prefix, connection, m)
+def log_message(m_type, m, connection=""):
+    if m_type == IN:
+        prefix = "<<<"
+    elif m_type == OUT:
+        prefix = ">>>"
+    elif m_type == CONNECT:
+        prefix = "***"
+    elif m_type == DISCONNECT:
+        prefix = "!!!"
+    else:
+        prefix = "INVALID_LOG_REQUEST" 
+    
+    to_log = "{} {} {}\n".format(prefix, connection, m)
     
     # TODO: batch write LOG to a file at some point
-    log.append(to_log)
+    log.write(to_log)
+    log.flush()
 
 
 # Print log contents to console 
@@ -321,6 +392,12 @@ def print_usage():
 async def fetch(session, url):
     async with session.get(url) as response:
         return await response.json()
+
+
+def port2name(port):
+    for s in SERVER_PORT_MAP.keys():
+        if SERVER_PORT_MAP[s] == port:
+            return s
 
 
 if __name__ == "__main__":

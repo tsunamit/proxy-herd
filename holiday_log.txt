@@ -1,0 +1,27 @@
+***  Connection established to Goloman
+***  Connection established to Welsh
+***  Connection established to Wilkes
+<<< ('127.0.0.1', 36448) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+<<< ('127.0.0.1', 36454) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+>>> 12777 AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+>>> 12780 AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+>>> 12781 AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+<<< ('127.0.0.1', 36462) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+<<< ('127.0.0.1', 36472) WHATSAT kiwi 1 1
+
+>>> ('127.0.0.1', 36472) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+{
+    "html_attributions": [],
+    "results": [],
+    "status": "ZERO_RESULTS"
+}
+
+<<< ('127.0.0.1', 36506) WHATSAT kiwi 1 1
+
+>>> ('127.0.0.1', 36506) AT Hands +39416859.45660758 kiwi +0.0-0.0 1520023934.918964
+{
+    "html_attributions": [],
+    "results": [],
+    "status": "ZERO_RESULTS"
+}
+
